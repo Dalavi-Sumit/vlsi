@@ -1,0 +1,121 @@
+--Main Code
+--clk, in(-,-)
+--rst, in(-,-)
+--enw, in(-,-)
+--enr, in(-,-)
+--datain, in(3,0)
+--dataout, out(3,0)
+--full, out(-,-)
+--empty, out(-,-)
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+entity FIFO_4bit is
+Port (
+    clk, rst : in STD_LOGIC;
+    enw, enr : in STD_LOGIC;
+    datain : in STD_LOGIC_VECTOR(3 downto 0);
+    dataout : out STD_LOGIC_VECTOR(3 downto 0);
+    full, empty : out STD_LOGIC
+);
+end FIFO_4bit;
+
+architecture Behavioral of FIFO_4bit is
+    type memory_type is array (0 to 7) of STD_LOGIC_VECTOR(3 downto 0);
+    signal memory : memory_type;
+    signal writeptr, readptr : STD_LOGIC_VECTOR(2 downto 0) := "000";
+    signal count : INTEGER range 0 to 8 := 0;
+begin
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst = '1' then
+                writeptr <= "000";
+                readptr <= "000";
+                count <= 0;
+            else
+                if (enw = '1' and enr = '0' and count < 8) then
+                    memory(conv_integer(writeptr)) <= datain;
+                    writeptr <= writeptr + 1;
+                    count <= count + 1;
+                elsif (enw = '0' and enr = '1' and count > 0) then
+                    dataout <= memory(conv_integer(readptr));
+                    readptr <= readptr + 1;
+                    count <= count - 1;
+                end if;
+            end if;
+        end if;
+    end process;
+
+    full <= '1' when count = 8 else '0';
+    empty <= '1' when count = 0 else '0';
+end Behavioral;
+
+--Test Bench Code
+LIBRARY ieee;
+USE ieee.std_logic_1164.ALL;
+
+ENTITY FIFO_4bit_tb IS
+END FIFO_4bit_tb;
+
+ARCHITECTURE behavior OF FIFO_4bit_tb IS
+    COMPONENT FIFO_4bit
+    PORT(
+        clk, rst : IN STD_LOGIC;
+        enw, enr : IN STD_LOGIC;
+        datain : IN STD_LOGIC_VECTOR(3 downto 0);
+        dataout : OUT STD_LOGIC_VECTOR(3 downto 0);
+        full, empty : OUT STD_LOGIC
+    );
+    END COMPONENT;
+
+    signal clk, rst, enw, enr : STD_LOGIC := '0';
+    signal datain, dataout : STD_LOGIC_VECTOR(3 downto 0) := (others => '0');
+    signal full, empty : STD_LOGIC;
+begin
+    uut: FIFO_4bit PORT MAP(
+        clk => clk,
+        rst => rst,
+        enw => enw,
+        enr => enr,
+        datain => datain,
+        dataout => dataout,
+        full => full,
+        empty => empty
+    );
+
+    clk_process : process
+    begin
+        clk <= '1';
+        wait for 5 ns;
+        clk <= '0';
+        wait for 5 ns;
+    end process;
+
+    stim_proc: process
+    begin
+        rst <= '1';
+        wait for 10 ns;
+        rst <= '0';
+
+        enw <= '1'; enr <= '0';
+        datain <= "0001"; wait for 10 ns;
+        datain <= "0011"; wait for 10 ns;
+        datain <= "0111"; wait for 10 ns;
+        datain <= "1111"; wait for 10 ns;
+        datain <= "1110"; wait for 10 ns;
+        datain <= "1100"; wait for 10 ns;
+        datain <= "1000"; wait for 10 ns;
+        datain <= "0000"; wait for 10 ns;
+
+        enw <= '0'; enr <= '1';
+        wait for 100 ns;
+
+        wait;
+    end process;
+END;
+
